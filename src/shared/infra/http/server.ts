@@ -10,6 +10,14 @@ import cors from 'cors';
 import uploadConfig from '@config/upload';
 import AppError from '@shared/errors/AppError';
 import path from 'path';
+import { router } from 'bull-board';
+import { setQueues, BullAdapter } from 'bull-board';
+
+import fila from "./fila"
+
+setQueues([
+  new BullAdapter(fila)
+]);
 
 const app = express();
 const PORT = 5555;
@@ -23,20 +31,19 @@ const corsoptions = {
 app.use((req, res, next) => {
   // app.use(cors)
   if (res) {
-    console.log("Passou pelo CORS")
+    // console.log("Passou pelo CORS")
   }
   next()
 })
 
 const page = path.resolve(__dirname, '..', '..', '..', '..', 'tmp', 'static');
 app.use('/', express.static(page));
-app.get('/', (req, res) => {
-  res.send('Hello World!');
-});
 
 app.use(bodyParser.urlencoded({ extended: false }))
 app.use(bodyParser.json())
 app.use('/files', express.static(uploadConfig.uploadsFolder));
+app.use('/admin/queues', router);
+
 app.use(express.json());
 app.use("/api/v1", cors(corsoptions), routes)
 

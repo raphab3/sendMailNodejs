@@ -14,7 +14,7 @@ export default class GmailProvider implements IMailProvider {
     private mailTemplateProvider: IMailTemplateProvider,
   ) {
 
-    let transporter = nodemailer.createTransport(new smtpTransport({
+    const transporter = nodemailer.createTransport(new smtpTransport({
       service: 'gmail',
       host: 'smtp.gmail.com',
       auth: {
@@ -33,7 +33,7 @@ export default class GmailProvider implements IMailProvider {
     templateData
   }: ISendMailDTO): Promise<void> {
 
-    const message = await this.client.sendMail({
+    await this.client.sendMail({
       from: {
         name: from?.name || "",
         address: from?.email || 'raphab33@gmail.com'

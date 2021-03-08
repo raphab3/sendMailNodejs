@@ -10,6 +10,7 @@ import CadastradosFindByIdService from '@modules/cadastrados/services/cadastrado
 import CadastradosGeneateCertificateService from '@modules/cadastrados/services/cadastradosGenerateCertificate.service';
 
 
+
 export default class CadastradosController {
 
 
@@ -19,9 +20,9 @@ export default class CadastradosController {
 
     fs.readFile(tmpFolderCsv, async (erro, file) => {
       console.log(file)
-      let data = (await neatCsv(file))
+      const data = (await neatCsv(file))
       data.forEach(async (linha: any) => {
-        let participante = { full_name: "", email: "" }
+        const participante = { full_name: "", email: "" }
         participante.full_name = linha.Nome.toLocaleUpperCase()
         participante.email = linha.Email.toLocaleLowerCase()
         await preRegisteredService.execute({ full_name: participante.full_name, email: participante.email })

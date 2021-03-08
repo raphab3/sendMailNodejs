@@ -1,3 +1,4 @@
+
 import { Cadastrados } from './../infra/typeorm/entities/cadastrados.entity';
 import AppError from "@shared/errors/AppError";
 import { injectable, inject } from "tsyringe";
@@ -5,6 +6,7 @@ import ICadastradosRepository from "../repositories/ICadastradosRepository";
 import imageToBase64 from "image-to-base64";
 import { jsPDF } from "jspdf";
 import fs from "fs"
+
 interface IRequest {
   full_name: string
   email: string
@@ -13,6 +15,7 @@ interface IRequest {
 import crypto from 'crypto';
 import path from 'path';
 import IMailProvider from '@shared/container/providers/MailProvider/models/IMailProvider';
+import Queue from 'bull';
 
 
 @injectable()
@@ -36,21 +39,14 @@ export default class CadastradosGeneateCertificateService {
       full_name
     );
 
-
-
     pdf = await pdf.split(';base64,').pop();
-
-    const pathCertificado = path.resolve(
-      __dirname,
-      '..', '..', '..', '..', '..',
-      'tmp', 'uploads', 'certificados'
-    );
 
     const filehash = crypto.randomBytes(10).toString('hex');
     const fileName = `${filehash}${Date.now()}.pdf`;
 
-    fs.writeFile(`${pathCertificado}/${fileName}`, pdf, { encoding: 'base64' }, (err) => {
-      console.log('File created');
+    fs.writeFile(`tmp/uploads/certificados/${fileName}`, pdf, { encoding: 'base64' }, function (err) {
+      if (err)
+        return console.error(err);
     });
 
     const certificadoTemplate = path.resolve(
@@ -60,27 +56,32 @@ export default class CadastradosGeneateCertificateService {
       'certificado.hbs',
     );
 
+    //redis
+    const options = {
+      delay: 5000,
+      priority: 3,
+      lifo: true,
+      attempts: 2
+    };
 
-    await this.mailProvider.sendMail({
-      to: {
-        name: full_name,
-        email: email,
-      },
-      subject: 'Gerando Certificado',
-      templateData: {
-        file: certificadoTemplate,
-        variables: {
-          name: full_name,
-          img: "https://static.wixstatic.com/media/4bac15_f5f41e82fb4d4a489e4fec78e3efc0a6~mv2.png/v1/fill/w_153,h_153,al_c,q_85,usm_0.66_1.00_0.01/brasao_icone.webp",
-          link: `${process.env.APP_API_URL}/files/certificados/${fileName}`,
-        },
-      },
-    });
+    const data = {
+      full_name: full_name,
+      email: email,
+      certificadoTemplate: certificadoTemplate,
+      fileName: fileName
+    };
 
-    console.log("this.mailProvider => ", this.mailProvider)
+    const sendMailQueue = new Queue('sendMail')
+
+    sendMailQueue.add(data, options);
+    sendMailQueue.process(async job => {
+      return await this.sendMail(job.data.full_name, job.data.email, job.data.certificadoTemplate, job.data.fileName)
+    })
+
 
     return cadastrado
   }
+
 
 
   private async gerarPDF(file_url: any, nome: any) {
@@ -88,8 +89,6 @@ export default class CadastradosGeneateCertificateService {
     return new Promise(async (resolve) => {
       imageToBase64(file_url) // Path to the image
         .then((imgData) => {
-          // console.log(imgData); // "cGF0aC90by9maWxlLmpwZw=="
-
           const doc = new jsPDF({
             orientation: "landscape",
           });
@@ -99,8 +98,6 @@ export default class CadastradosGeneateCertificateService {
           const splitTitle = doc.splitTextToSize(`${nome}`, 180);
           doc.text(splitTitle, 24, 100);
           doc.autoPrint();
-          // doc.output('bloburi');
-          // let url =  doc.output('arraybuffer')
           let url = doc.output("dataurlstring");
           url = url.replace(/^data:image\/(png|jpg);base64,/, "");
           resolve(url);
@@ -111,8 +108,26 @@ export default class CadastradosGeneateCertificateService {
     });
   }
 
-
-
+  private async sendMail(full_name: any, email: any, certificadoTemplate: any, fileName: any) {
+    // eslint-disable-next-line no-async-promise-executor
+    return new Promise(async () => {
+      await this.mailProvider.sendMail({
+        to: {
+          name: full_name,
+          email: email,
+        },
+        subject: 'Gerando Certificado',
+        templateData: {
+          file: certificadoTemplate,
+          variables: {
+            name: full_name,
+            img: "https://static.wixstatic.com/media/4bac15_f5f41e82fb4d4a489e4fec78e3efc0a6~mv2.png/v1/fill/w_153,h_153,al_c,q_85,usm_0.66_1.00_0.01/brasao_icone.webp",
+            link: `${process.env.APP_API_URL}/files/certificados/${fileName}`,
+          },
+        }
+      });
+    })
+  }
 }
 
 
