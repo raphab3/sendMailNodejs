@@ -26,60 +26,76 @@ export default class CadastradosGeneateCertificateService {
     private mailProvider: IMailProvider,
     @inject("CadastradosRepository") private cadastradosRepository: ICadastradosRepository) { }
 
-  async execute({ full_name, email }: IRequest): Promise<Cadastrados> {
-    console.log("DADOS SERVICE --", { full_name, email })
-    const cadastrado = await this.cadastradosRepository.findByEmail(email)
-    if (!cadastrado) {
-      throw new AppError("User not found!", 404)
+  async execute(): Promise<any> {
+    console.log("")
+    // const cadastrado = await this.cadastradosRepository.findByEmail(email)
+    // if (!cadastrado) {
+    //   throw new AppError("User not found!", 404)
+    // }
+
+    const cadastrados = await this.cadastradosRepository.find({})
+
+    const newEmail = "xocogod224@irahada.com"
+
+
+    for (let index = 0; index <= cadastrados.length; index++) {
+      const cadas: any = []
+      cadas[index] = { full_name: cadastrados[index].full_name, email: newEmail }
+
+      setTimeout(() => {
+        // const newP = { full_name: "RAFAEL BATISTA", email: newEmail }
+
+        const filehash = crypto.randomBytes(10).toString('hex');
+        const fileName = `${filehash}${Date.now()}.pdf`;
+
+        const certificadoTemplate = path.resolve(
+          __dirname,
+          '..',
+          'views',
+          'certificado.hbs',
+        );
+
+        // //redis
+        const options = {
+          delay: 5000,
+          lifo: true,
+        };
+
+        const data = {
+          full_name: cadas[index].full_name,
+          email: cadas[index].email,
+          certificadoTemplate: certificadoTemplate,
+          fileName: fileName
+        };
+
+        const sendMailQueue = new Queue('sendMail')
+
+        sendMailQueue.add(data, options);
+        sendMailQueue.process(async job => {
+          let pdf: any = "";
+
+          pdf = await this.gerarPDF(
+            "files/certificado.png",
+            cadas[index].full_name
+          );
+
+          pdf = await pdf.split(';base64,').pop();
+
+          fs.writeFile(`tmp/uploads/certificados/${fileName}`, pdf, { encoding: 'base64' }, function (err) {
+            if (err)
+              return console.error(err);
+          });
+
+
+          await this.sendMail(job.data.full_name, job.data.email, job.data.certificadoTemplate, job.data.fileName)
+        })
+
+      }, 5000);
+
+
     }
 
-    let pdf: any = "";
-    pdf = await this.gerarPDF(
-      "files/certificado.png",
-      full_name
-    );
-
-    pdf = await pdf.split(';base64,').pop();
-
-    const filehash = crypto.randomBytes(10).toString('hex');
-    const fileName = `${filehash}${Date.now()}.pdf`;
-
-    fs.writeFile(`tmp/uploads/certificados/${fileName}`, pdf, { encoding: 'base64' }, function (err) {
-      if (err)
-        return console.error(err);
-    });
-
-    const certificadoTemplate = path.resolve(
-      __dirname,
-      '..',
-      'views',
-      'certificado.hbs',
-    );
-
-    //redis
-    const options = {
-      delay: 5000,
-      priority: 3,
-      lifo: true,
-      attempts: 2
-    };
-
-    const data = {
-      full_name: full_name,
-      email: email,
-      certificadoTemplate: certificadoTemplate,
-      fileName: fileName
-    };
-
-    const sendMailQueue = new Queue('sendMail')
-
-    sendMailQueue.add(data, options);
-    sendMailQueue.process(async job => {
-      return await this.sendMail(job.data.full_name, job.data.email, job.data.certificadoTemplate, job.data.fileName)
-    })
-
-
-    return cadastrado
+    return "Enviados"
   }
 
 
@@ -96,15 +112,12 @@ export default class CadastradosGeneateCertificateService {
           doc.setFontSize(30);
           doc.addImage(imgData, "JPEG", 8, 15, 280, 180);
           const splitTitle = doc.splitTextToSize(`${nome}`, 180);
-          doc.text(splitTitle, 24, 100);
+          doc.text(splitTitle, 24, 110, { align: 'left' });
           doc.autoPrint();
           let url = doc.output("dataurlstring");
           url = url.replace(/^data:image\/(png|jpg);base64,/, "");
           resolve(url);
         })
-        .catch((error) => {
-          console.log(error); // Logs an error if there was one
-        });
     });
   }
 

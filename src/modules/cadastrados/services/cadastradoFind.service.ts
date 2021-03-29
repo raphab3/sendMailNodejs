@@ -12,7 +12,7 @@ export default class CadastradoFindService {
     @inject("CadastradosRepository") private cadastradosRepository: ICadastradosRepository) { }
 
   async execute({ skip, take }: IRequest): Promise<People[] | void> {
-    const person = await this.cadastradosRepository.find({ skip: skip, take: take }).catch(() => console.log("Error time 01"));
+    const person = await this.cadastradosRepository.find({ skip: skip, take: take })
     return person
   }
 }

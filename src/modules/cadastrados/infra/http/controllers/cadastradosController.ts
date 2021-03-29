@@ -36,7 +36,7 @@ export default class CadastradosController {
     const cadastradosService = container.resolve(CadastradosGeneateCertificateService)
     const email: any = request.query.email
     const full_name: any = request.query.full_name
-    const participante = await cadastradosService.execute({ full_name, email })
+    const participante = await cadastradosService.execute()
     return response.status(200).json({
       msg: "Certificado Gerado",
       data: participante
@@ -58,9 +58,7 @@ export default class CadastradosController {
   public async show(request: Request, response: Response): Promise<Response> {
     const { id } = request.params
     const cadastradosService = container.resolve(CadastradosFindByIdService)
-    const people = await cadastradosService.execute({ id }).catch(() => {
-      console.log("Error: People not found!");
-    });
+    const people = await cadastradosService.execute({ id })
     return response.status(200).json({
       data: people
     })

@@ -2,10 +2,10 @@ import "reflect-metadata";
 import 'dotenv/config';
 import '@shared/infra/typeorm';
 import "@shared/container"
-import express, { Request, Response, NextFunction } from 'express';
+import express, { Request, Response } from 'express';
 import 'express-async-errors';
 import routes from './routes';
-import bodyParser from 'body-parser';
+import { json, urlencoded } from 'body-parser';
 import cors from 'cors';
 import uploadConfig from '@config/upload';
 import AppError from '@shared/errors/AppError';
@@ -29,7 +29,7 @@ const corsoptions = {
 
 // CORS
 app.use((req, res, next) => {
-  // app.use(cors)
+  app.use(cors)
   if (res) {
     // console.log("Passou pelo CORS")
   }
@@ -39,8 +39,8 @@ app.use((req, res, next) => {
 const page = path.resolve(__dirname, '..', '..', '..', '..', 'tmp', 'static');
 app.use('/', express.static(page));
 
-app.use(bodyParser.urlencoded({ extended: false }))
-app.use(bodyParser.json())
+app.use(urlencoded({ extended: false }))
+app.use(json())
 app.use('/files', express.static(uploadConfig.uploadsFolder));
 app.use('/admin/queues', router);
 
@@ -48,7 +48,7 @@ app.use(express.json());
 app.use("/api/v1", cors(corsoptions), routes)
 
 // Middlewares Global de Erros
-app.use((err: Error, request: Request, response: Response, _: NextFunction) => {
+app.use((err: Error, request: Request, response: Response) => {
   console.log(err)
   if (err instanceof AppError) {
     return response

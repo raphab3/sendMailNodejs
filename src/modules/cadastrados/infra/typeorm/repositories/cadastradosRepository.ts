@@ -15,7 +15,7 @@ export default class CadastradosRepository implements ICadastradosRepository {
 
 
   public async findById(id: string): Promise<void | Cadastrados> {
-    const cadastrado = await this.ormRepository.findOne(id).catch(() => console.log("Person not found"))
+    const cadastrado = await this.ormRepository.findOne(id)
     return cadastrado;
   }
 
